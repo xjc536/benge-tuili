@@ -75,6 +75,32 @@ body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml
 .suspect-card .s-avatar{font-size:2.2rem;margin-bottom:8px}
 .suspect-card .s-name{color:var(--paper);font-size:.95rem;margin-bottom:2px}
 .suspect-card .s-role{font-size:.7rem;color:var(--muted)}
+.suspect-card.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
+.suspect-card.locked:hover{border-color:var(--border);background:#0d0d0d;transform:none}
+.suspect-card.locked .s-lock{font-size:.65rem;color:var(--accent);margin-top:6px;letter-spacing:1px}
+.suspect-card.hidden-suspect{opacity:.3;cursor:not-allowed;filter:grayscale(.7) blur(1px)}
+.suspect-card.hidden-suspect .s-name{color:var(--muted)}
+.suspect-card.hidden-suspect .s-role{display:none}
+
+/* Insufficient evidence warning */
+.insufficient-evidence{text-align:center;padding:28px 18px;margin:16px 0;border:1px dashed #3a1a1a;background:#0a0a0a;color:var(--accent);font-family:var(--serif);letter-spacing:1px;line-height:2;font-size:.88rem}
+
+/* Synthesis */
+.synthesis-panel{margin:16px 0}
+.synthesis-prompt{font-family:var(--serif);color:var(--gold);text-align:center;letter-spacing:2px;margin-bottom:16px;line-height:2;font-size:.9rem}
+.synthesis-note-card{padding:14px 16px;border:1px solid var(--border);background:#0d0d0d;cursor:pointer;margin-bottom:8px;transition:all .2s;display:flex;align-items:flex-start;gap:12px;font-family:var(--serif);font-size:.85rem;color:#999;line-height:1.8}
+.synthesis-note-card:hover{border-color:var(--blue)}
+.synthesis-note-card.selected{border-color:var(--gold);background:#151510;color:var(--paper)}
+.synthesis-note-card.selected::before{content:'✓';color:var(--gold);font-weight:700;font-size:1rem;flex-shrink:0;margin-top:2px}
+.synthesis-note-card .s-check{flex-shrink:0;width:18px;height:18px;border:2px solid var(--border);border-radius:3px;margin-top:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:.7rem}
+.synthesis-note-card.selected .s-check{border-color:var(--gold);background:var(--gold);color:#000}
+.btn-synthesis{margin-top:12px}
+
+/* Bad ending */
+.bad-ending-panel{text-align:center;padding:32px 24px;background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);margin-bottom:14px;animation:fadeIn .5s ease}
+.bad-ending-title{font-family:var(--serif);font-size:1.2rem;color:var(--accent);letter-spacing:3px;margin-bottom:16px}
+.bad-ending-text{font-family:var(--serif);color:#999;line-height:2.2;font-size:.88rem;text-align:left;background:#0a0a0a;padding:20px;margin:14px 0;border:1px solid var(--border)}
+.bad-ending-rating{font-size:3rem;font-weight:900;color:var(--muted);margin:12px 0;font-family:var(--serif)}
 
 /* Result */
 .result-panel{text-align:center;padding:32px 24px;background:var(--card);border:1px solid var(--border);margin-bottom:14px;animation:fadeIn .5s ease}
@@ -141,7 +167,7 @@ body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-const P={score:0,solved:{},currentCase:null,currentBeat:0,visitedBeats:[],notebook:[],wrongAccusations:0,finished:false};
+const P={score:0,solved:{},currentCase:null,currentBeat:0,visitedBeats:[],notebook:[],wrongAccusations:0,finished:false,synthesisResult:null};
 const RANKS=[{min:0,title:'见习探员',icon:'🔍'},{min:120,title:'初级探员',icon:'📋'},{min:300,title:'中级探员',icon:'🔎'},{min:550,title:'高级探员',icon:'🎩'},{min:900,title:'资深探员',icon:'🏅'},{min:1400,title:'首席神探',icon:'👑'},{min:2000,title:'传奇侦探',icon:'🌟'}];
 function rank(){for(let i=RANKS.length-1;i>=0;i--)if(P.score>=RANKS[i].min)return RANKS[i];return RANKS[0]}
 
@@ -155,7 +181,7 @@ function renderGrid(){document.getElementById('caseGrid').innerHTML=CASES.map(ca
 function startCase(id){
   if(P.currentCase&&P.currentCase!==id){toast('请先完成当前案件');return}
   if(P.solved[id]){toast('此案已侦破');return}
-  P.currentCase=id;P.currentBeat=0;P.visitedBeats=[];P.notebook=[];P.wrongAccusations=0;P.finished=false;
+  P.currentCase=id;P.currentBeat=0;P.visitedBeats=[];P.notebook=[];P.wrongAccusations=0;P.finished=false;P.synthesisResult=null;
   showScreen('caseScreen');goToBeat(0);refreshHome();
 }
 function abandonCase(){
@@ -174,16 +200,16 @@ function goToBeat(idx){
   let h=`<div class="beat-panel"><div class="beat-location">${beat.location||''}</div><div class="beat-text">${beat.text}</div>`;
   if(beat.scene)h+=`<div class="scene-insert"><span class="tag">现场</span>${beat.scene}</div>`;
   // Notebook
-  if(P.notebook.length>0){h+=`<div class="notebook"><div class="notebook-title">📓 调查笔记</div>${P.notebook.map(e=>`<div class="entry">${e}</div>`).join('')}</div>`}
-  // Choices or Continue
+  if(P.notebook.length>0&&beat.type!=='synthesis'){h+=`<div class="notebook"><div class="notebook-title">📓 调查笔记</div>${P.notebook.map(e=>`<div class="entry">${typeof e==='string'?e:e.text}</div>`).join('')}</div>`}
+  // Choices, Synthesis, Accusation, or Continue
   if(beat.choices&&!P.finished){
     h+=`<div class="choice-list">`;
     beat.choices.forEach((ch,i)=>{h+=`<button class="choice-btn" onclick="makeChoice(${idx},${i})"><span class="dot"></span><span>${ch.label}</span></button>`});
     h+=`</div>`;
+  }else if(beat.type==='synthesis'&&!P.finished){
+    h+=renderSynthesis(ca,beat,idx);
   }else if(beat.type==='accusation'&&!P.finished){
-    h+=`<div style="margin:16px 0;font-family:var(--serif);color:var(--gold);text-align:center;letter-spacing:2px">⚖️ 请指认真凶</div><div class="suspect-grid">`;
-    ca.suspects.forEach((s,i)=>{h+=`<div class="suspect-card" onclick="accuse(${i})"><div class="s-avatar">${s.avatar}</div><div class="s-name">${s.name}</div><div class="s-role">${s.role}</div></div>`});
-    h+=`</div>`;
+    h+=renderAccusation(ca,beat);
   }else if(!P.finished){
     h+=`<div style="margin-top:20px"><button class="btn btn-go" onclick="continueBeat()">继续 →</button></div>`;
   }
@@ -191,27 +217,167 @@ function goToBeat(idx){
 }
 function makeChoice(bIdx,cIdx){
   const ca=CASES.find(x=>x.id===P.currentCase),beat=ca.beats[bIdx],ch=beat.choices[cIdx];
-  if(ch.note&&!P.notebook.includes(ch.note))P.notebook.push(ch.note);
+  if(ch.note){
+    let noteObj;
+    if(typeof ch.note==='string'){noteObj={text:ch.note,type:'background',id:''};}
+    else{noteObj=ch.note;}
+    const dup=noteObj.id?P.notebook.some(n=>n.id===noteObj.id):P.notebook.some(n=>n.text===noteObj.text);
+    if(!dup)P.notebook.push(noteObj);
+  }
   if(ch.effect==='wrong')P.wrongAccusations++;
   document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
   setTimeout(()=>goToBeat(ch.next),50);
 }
 function continueBeat(){const ca=CASES.find(x=>x.id===P.currentCase),beat=ca.beats[P.currentBeat];if(beat.defaultNext!==undefined){document.querySelectorAll('.btn-go').forEach(b=>b.disabled=true);setTimeout(()=>goToBeat(beat.defaultNext),40)}}
+
+function isSuspectUnlocked(suspect,notebook){
+  if(!suspect.requires||suspect.requires.length===0)return true;
+  return suspect.requires.every(id=>notebook.some(n=>n.id===id));
+}
+function hasPartialKeys(suspect,notebook){
+  if(!suspect.requires||suspect.requires.length===0)return false;
+  return suspect.requires.some(id=>notebook.some(n=>n.type==='key'&&n.id===id))&&!isSuspectUnlocked(suspect,notebook);
+}
+
+function renderAccusation(ca,beat){
+  let h='';
+  // Old cases: no evidence gating
+  if(ca.totalKeyNotes===undefined){
+    h+=`<div style="margin:16px 0;font-family:var(--serif);color:var(--gold);text-align:center;letter-spacing:2px">⚖️ 请指认真凶</div><div class="suspect-grid">`;
+    ca.suspects.forEach((s,i)=>{h+=`<div class="suspect-card" onclick="accuse(${i})"><div class="s-avatar">${s.avatar}</div><div class="s-name">${s.name}</div><div class="s-role">${s.role}</div></div>`});
+    h+=`</div>`;
+    return h;
+  }
+  const keyCount=P.notebook.filter(n=>n.type==='key').length;
+  const minKey=ca.minKeyForAccusation||1;
+  if(keyCount<minKey){
+    h+=`<div class="insufficient-evidence">🔒 关键证据不足（${keyCount}/${minKey}）<br>你需要更多调查才能进行指认。</div>`;
+    return h;
+  }
+  h+=`<div style="margin:16px 0;font-family:var(--serif);color:var(--gold);text-align:center;letter-spacing:2px">⚖️ 请指认真凶</div><div class="suspect-grid">`;
+  ca.suspects.forEach((s,i)=>{
+    const unlocked=isSuspectUnlocked(s,P.notebook);
+    const partial=hasPartialKeys(s,P.notebook);
+    const isCulprit=i===ca.culprit;
+    if(unlocked){
+      h+=`<div class="suspect-card" onclick="accuse(${i})"><div class="s-avatar">${s.avatar}</div><div class="s-name">${s.name}</div><div class="s-role">${s.role}</div></div>`;
+    }else if(isCulprit&&partial){
+      h+=`<div class="suspect-card hidden-suspect"><div class="s-avatar">❓</div><div class="s-name">???</div><div class="s-role">线索不足</div><div class="s-lock">🔒 需要更多证据</div></div>`;
+    }else if(partial){
+      h+=`<div class="suspect-card locked"><div class="s-avatar">${s.avatar}</div><div class="s-name">${s.name}</div><div class="s-role">${s.role}</div><div class="s-lock">🔒 线索不足</div></div>`;
+    }
+    // zero evidence: hidden entirely
+  });
+  h+=`</div>`;
+  return h;
+}
+
+function renderSynthesis(ca,beat,beatIdx){
+  let h=`<div class="synthesis-panel">`;
+  h+=`<div class="synthesis-prompt">${ca.synthesisPrompt||'请从调查笔记中选择你认为最关键的线索，以支撑你的指认。'}</div>`;
+  h+=`<div style="font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:12px">选择 3 条线索</div>`;
+  h+=`<div id="synthesisNotes">`;
+  P.notebook.forEach((n,i)=>{
+    const txt=typeof n==='string'?n:n.text;
+    h+=`<div class="synthesis-note-card" id="synote-${i}" onclick="toggleSynNote(${i})"><div class="s-check"></div><div>${txt}</div></div>`;
+  });
+  h+=`</div>`;
+  h+=`<div class="btn-synthesis"><button class="btn btn-continue" id="btnSubmitSyn" onclick="submitSynthesis(${beatIdx})" disabled>提交推理</button></div>`;
+  h+=`</div>`;
+  // Init selection state
+  P._synSelected=P._synSelected||[];
+  P._synSelected.forEach(i=>{
+    const el=document.getElementById('synote-'+i);
+    // will be applied after render via setTimeout
+  });
+  setTimeout(()=>{
+    P._synSelected.forEach(i=>{const el=document.getElementById('synote-'+i);if(el)el.classList.add('selected')});
+    updateSynBtn();
+  },10);
+  return h;
+}
+function toggleSynNote(i){
+  P._synSelected=P._synSelected||[];
+  const el=document.getElementById('synote-'+i);
+  if(!el)return;
+  if(P._synSelected.includes(i)){
+    P._synSelected=P._synSelected.filter(x=>x!==i);
+    el.classList.remove('selected');
+  }else if(P._synSelected.length<3){
+    P._synSelected.push(i);
+    el.classList.add('selected');
+  }
+  updateSynBtn();
+}
+function updateSynBtn(){
+  const btn=document.getElementById('btnSubmitSyn');
+  if(btn)btn.disabled=(P._synSelected||[]).length!==3;
+}
+function submitSynthesis(beatIdx){
+  const ca=CASES.find(x=>x.id===P.currentCase);
+  const selected=(P._synSelected||[]).map(i=>P.notebook[i]).filter(Boolean);
+  const correctCount=selected.filter(n=>n.type==='key').length;
+  P.synthesisResult={selected:selected.map(n=>n.id||n.text),correct:correctCount};
+  P._synSelected=[];
+  const beat=ca.beats[beatIdx];
+  if(beat.defaultNext!==undefined){
+    document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
+    setTimeout(()=>goToBeat(beat.defaultNext),40);
+  }
+}
 function accuse(si){
   const ca=CASES.find(x=>x.id===P.currentCase);
   if(si===ca.culprit){
     P.finished=true;
-    let r='C';const rn=P.notebook.length,tbn=ca.totalNotes||0;
-    if(P.wrongAccusations===0&&rn>=tbn)r='S';else if(P.wrongAccusations===0&&rn>=tbn-1)r='A';else if(P.wrongAccusations<=1)r='B';
+    const isNew=ca.totalKeyNotes!==undefined;
+    const keyCount=isNew?P.notebook.filter(n=>n.type==='key').length:0;
+    const rhCount=isNew?P.notebook.filter(n=>n.type==='red_herring').length:0;
+    const rn=P.notebook.length;
+    const tbn=ca.totalNotes||0;
+    const tkn=ca.totalKeyNotes||tbn;
+    let r='C';
+    if(isNew){
+      if(P.wrongAccusations===0&&keyCount>=tkn)r='S';
+      else if(P.wrongAccusations===0&&keyCount>=tkn-1)r='A';
+      else if(P.wrongAccusations<=1)r='B';
+      const maxByRH=rhCount>=3?'B':rhCount>=1?'A':'S';
+      const grades=['S','A','B','C'];
+      r=grades[Math.max(grades.indexOf(r),grades.indexOf(maxByRH))];
+    }else{
+      if(P.wrongAccusations===0&&rn>=tbn)r='S';
+      else if(P.wrongAccusations===0&&rn>=tbn-1)r='A';
+      else if(P.wrongAccusations<=1)r='B';
+    }
     P.solved[ca.id]=r;const scores={S:200,A:140,B:70,C:30};P.score+=scores[r];
+    let endingNote='';
+    if(isNew){
+      if(r==='S')endingNote='证据链完整无缺，推理如行云流水。';
+      else if(r==='A')endingNote='核心推理正确，真相已被揭开。';
+      else if(keyCount<(ca.minKeyForAccusation||1))endingNote='虽然指认了真凶，但关键证据不足——真凶可能利用证据漏洞逃脱法律制裁。';
+      else if(rhCount>=2)endingNote='你被过多的干扰信息分散了注意力。虽然结果正确，但推理过程受到了误导。';
+    }
     const msgs={S:'完美推理！每一个细节都被串联成了完整的证据链。',A:'出色的侦破！核心推理路径完全正确。',B:'基本过关。虽然遗漏了一些线索，但真凶已被锁定。',C:'勉强过关。下一次需要更加仔细。'};
     const em={S:'🎩✨🏆',A:'🎉⭐',B:'👍',C:'😐'};
     document.getElementById('caseContent').innerHTML=`
-      <div class="result-panel"><div>案件终结 — ${ca.icon} ${ca.title}</div><div class="result-rating ${r}">${r}</div><div class="result-msg">${msgs[r]}</div><div class="result-detail">${em[r]} 获得 <b style="color:var(--gold)">+${scores[r]}</b> 分</div><div class="truth-box"><b>【真相揭示】</b><br><br>${ca.truth}</div><button class="btn btn-continue" onclick="returnHome()">返回事务所 →</button></div>`;
+      <div class="result-panel"><div>案件终结 — ${ca.icon} ${ca.title}</div><div class="result-rating ${r}">${r}</div><div class="result-msg">${msgs[r]}</div>${endingNote?`<div class="result-detail" style="color:var(--accent)">${endingNote}</div>`:''}<div class="result-detail">${em[r]} 获得 <b style="color:var(--gold)">+${scores[r]}</b> 分</div><div class="truth-box"><b>【真相揭示】</b><br><br>${ca.truth}</div><button class="btn btn-continue" onclick="returnHome()">返回事务所 →</button></div>`;
     document.getElementById('progressBar').innerHTML='';
     if(r==='S'||r==='A')spawnConfetti();
     P.currentCase=null;refreshHome();
-  }else{P.wrongAccusations++;toast('❌ 不对。重新思考。')}
+  }else{
+    P.wrongAccusations++;
+    const s=ca.suspects[si];
+    const isNew=ca.totalKeyNotes!==undefined;
+    if(s&&s.badEnding&&isNew){
+      P.finished=true;
+      P.solved[ca.id]='C';P.score+=10;
+      document.getElementById('caseContent').innerHTML=`
+        <div class="bad-ending-panel"><div class="bad-ending-title">💀 误判</div><div class="bad-ending-text">${s.badEnding}</div><div class="bad-ending-rating">- 误判 -</div><div class="result-detail" style="color:var(--muted)">获得 <b style="color:var(--muted)">+10</b> 分</div><button class="btn btn-continue" onclick="returnHome()">返回事务所 →</button></div>`;
+      document.getElementById('progressBar').innerHTML='';
+      P.currentCase=null;refreshHome();
+    }else{
+      toast('❌ 不对。重新思考。');
+    }
+  }
 }
 function returnHome(){showScreen('homeScreen');refreshHome()}
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2100)}
@@ -225,7 +391,8 @@ const CASES=[];
 // ── 案件1：倾斜之馆（完整互动小说版）──────
 CASES.push({
 id:'slanted',icon:'🏚️',title:'倾斜之馆',tagline:'15度倾斜·弹珠密室·建筑诡计',
-totalNotes:3,
+totalNotes:3,totalKeyNotes:4,minKeyForAccusation:2,
+synthesisPrompt:'你已收集了多条线索。现在请从笔记中选出3条你认为最关键的证据——它们将决定你的推理能否成立。',
 beats:[
 {location:'十二月十七日·凌晨04:17·贡嘎山麓',text:`
 <p>电话响了四下你才接。是省厅调度中心。"贡嘎山——倾斜馆——命案。暴风雪封了路，直升机一个小时后到。你先准备一下。"</p>
@@ -255,9 +422,9 @@ beats:[
 <p>一名警员在尸体的睡衣口袋中找到了房门的钥匙——锁孔还能正常转动。法医初步判断：死亡时间在凌晨2:00至3:00之间。致命伤为工艺刀刺穿心脏。伤口角度显示凶手是<b>正面行刺</b>，略微从右上向左下倾斜——这符合两人站立时面对面攻击的角度。</p>
 <p>你没有太多时间。暴风雪虽然停了，但新的证据随时可能因温度变化而损坏。你需要决定从哪里开始深入调查。</p>
 `,choices:[
-{label:'重点分析弹珠的分布模式——为什么弹珠只在南半侧？',note:'弹珠分布呈北→南扇形扩散，起点指向北墙小孔正下方。物理模拟表明弹珠是从固定容器中一次释放，而非人为撒开。',next:4},
-{label:'重点调查北墙小孔和阁楼通风管的关联',note:'小孔与阁楼通风管对齐。在阁楼中发现跪姿压痕和一截烧焦的棉绳——与捆绑弹珠木箱的绳子材质一致。',next:5},
-{label:'重点调查仓库密码锁——弹珠是如何被取出的？',note:'弹珠陈列柜有密码锁。家政工沈青曾试图用偷配的钥匙打开但密码错误。只有知道密码的人才能取出弹珠——谭小曼知道（结婚纪念日）。',next:6},
+{label:'重点分析弹珠的分布模式——为什么弹珠只在南半侧？',note:{text:'弹珠分布呈北→南扇形扩散，起点指向北墙小孔正下方。物理模拟表明弹珠是从固定容器中一次释放，而非人为撒开。',type:'key',id:'marble_physics'},next:4},
+{label:'重点调查北墙小孔和阁楼通风管的关联',note:{text:'小孔与阁楼通风管对齐。在阁楼中发现跪姿压痕和一截烧焦的棉绳——与捆绑弹珠木箱的绳子材质一致。',type:'key',id:'attic_rope'},next:5},
+{label:'重点调查仓库密码锁——弹珠是如何被取出的？',note:{text:'弹珠陈列柜有密码锁。家政工沈青曾试图用偷配的钥匙打开但密码错误。只有知道密码的人才能取出弹珠——谭小曼知道（结婚纪念日）。',type:'key',id:'password_knowledge'},next:6},
 ]},
 // Branch A: 弹珠分布
 {location:'弹珠分布分析',text:`
@@ -289,11 +456,10 @@ beats:[
 <p>④ 密室——门反锁，钥匙在死者口袋。窗户无法出入。</p>
 <p>⑤ 死亡时间：凌晨2:00-3:00。正面刺杀。工艺刀——死者自己的工具。</p>
 <p>三条线索都在指向同一个方向——一个知道密码、能在倾斜面上自如行动、知道阁楼通风管走向的人。在三个嫌疑人中，只有一个人同时符合这三个条件。</p>
-<p>但现在下结论还太早。你需要听他们自己怎么说。三名嫌疑人已经在不同的房间里等着你了。你决定先传唤谁？</p>
+<p>但现在下结论还太早。你可以选择<b>继续深入调查</b>另一个方向——弹珠分布、阁楼痕迹或密码锁——以获取更完整的证据链。也可以直接<b>开始审讯嫌疑人</b>。你如何决定？</p>
 `,choices:[
-{label:'先询问妻子谭小曼——她声称"撞门进入"发现尸体',note:'谭小曼在倾斜馆十五年——身体适应15度斜面。知道仓库密码（结婚纪念日）。知道阁楼通风管构造。声称"整晚在二楼睡觉，什么都没听到"。撞门行为破坏了密室的第一现场。',next:8},
-{label:'先询问前合伙人陆鸣——案发夜被目击在山路上逗留',note:'陆鸣二十年前被死者骗走所有专利。案发夜共享汽车GPS显示他在距倾斜馆300米处停车20分钟。他看到二楼灯光在凌晨2:15亮着——谭小曼声称在睡觉。',next:9},
-{label:'先询问家政工沈青——她的指纹出现在弹珠柜密码锁上',note:'沈青因母亲重病急需用钱，偷配了仓库钥匙想偷弹珠卖钱。但密码锁三次错误触发警报，她逃跑。她的行为解释了密码锁上的指纹——但她不知道密码，打不开柜子。',next:10},
+{label:'深入调查另一个方向——你需要更完整的证据链支撑推理',note:null,next:15},
+{label:'直接开始审讯嫌疑人——现有线索已足够确定方向',note:null,next:16},
 ]},
 // Tan Xiaoman interrogation
 {location:'审讯室A·谭小曼',text:`
@@ -336,7 +502,7 @@ beats:[
 <p>然后你收到了一条来自物证科的新消息：<b>"阁楼棉绳上的烧焦痕迹——是用谭正声书房里的打火机烧的。打火机上有谭小曼的指纹。"</b></p>
 <p>所有箭头都开始指向同一个人。但你需要最后确认一件事——密室的构造。弹珠是如何被从阁楼远程释放的？</p>
 `,choices:[
-{label:'重建密室：凶手将弹珠装入木箱→固定于北墙→箱盖由穿小孔的绳子控制→从阁楼拉绳释放弹珠',note:'密室全貌：木箱固定于北墙高处，箱口朝南。箱盖被一根棉绳拉住——绳子穿过北墙小孔→通风管→延伸到阁楼。凶手锁门→上阁楼→拉绳→绳从小孔滑出→箱盖弹开→弹珠倾泻→覆盖痕迹→密室完成。',next:12},
+{label:'重建密室：凶手将弹珠装入木箱→固定于北墙→箱盖由穿小孔的绳子控制→从阁楼拉绳释放弹珠',note:{text:'密室全貌：木箱固定于北墙高处，箱口朝南。箱盖被一根棉绳拉住——绳子穿过北墙小孔→通风管→延伸到阁楼。凶手锁门→上阁楼→拉绳→绳从小孔滑出→箱盖弹开→弹珠倾泻→覆盖痕迹→密室完成。',type:'key',id:'locked_room_mechanism'},next:12},
 {label:'考虑另一种可能性：弹珠是凶手在室内撒开的，不是远程释放',note:null,effect:'wrong',next:12},
 ]},
 {location:'下午17:00·真相成形',text:`
@@ -352,13 +518,43 @@ beats:[
 <p>她的手开始颤抖。十五年来第一次——在这个倾斜的房间里——她的身体失去了平衡。</p>
 <p>"你等他睡着。你下到仓库——用你们的结婚纪念日输密码——打开了弹珠柜。你用他工作台上的螺丝刀把木箱固定到北墙。你把棉绳穿过小孔——你在阁楼跪了很久——你等了又等——然后在凌晨2:10你拿起那把工艺刀——"</p>
 <p>"够了。"她的声音像碎玻璃。然后她说了最后一句话："那把刀<b>本来</b>也是我的。二十年前。我和他一起做的。"</p>
-`,defaultNext:14},
+`,defaultNext:17},
+// Beat 14: Accusation
 {location:'',type:'accusation',text:`
 <p>你掌握了所有证据。最后的时刻到了。</p>
 <p>在倾斜馆的"倾斜之间"中——在三百二十七颗弹珠曾经滚动的地板上——在十五度倾斜的重力场中——你需要说出那个名字。杀害谭正声的凶手。</p>
 `,defaultNext:-1},
+// Beat 15: 第二轮调查
+{location:'上午10:00·深入调查',text:`
+<p>你决定在审讯前获取更完整的证据链。三条调查路线——弹珠分布分析、阁楼痕迹勘查、密码锁调查——你之前只走了一条。现在你可以深入第二条路线。每一条都可能揭示不同的拼图碎片。</p>
+<p>你翻开现场勘查报告。三条证据链像是三条通向真相的小径——每条都看得见终点，但每条沿途的风景不尽相同。你需要选择一条新的路。</p>
+`,choices:[
+{label:'深入弹珠分布分析——用物理模拟还原密室形成过程',note:{text:'弹珠分布呈北→南扇形扩散，起点指向北墙小孔正下方。物理模拟表明弹珠是从固定容器中一次释放，而非人为撒开。',type:'key',id:'marble_physics'},next:16},
+{label:'深入阁楼通风管调查——追踪棉绳和跪姿压痕的来源',note:{text:'小孔与阁楼通风管对齐。在阁楼中发现跪姿压痕和一截烧焦的棉绳——与捆绑弹珠木箱的绳子材质一致。',type:'key',id:'attic_rope'},next:16},
+{label:'深入仓库密码锁调查——查明谁有密码、谁碰过锁',note:{text:'弹珠陈列柜有密码锁。家政工沈青曾试图用偷配的钥匙打开但密码错误。只有知道密码的人才能取出弹珠——谭小曼知道（结婚纪念日）。',type:'key',id:'password_knowledge'},next:16},
+]},
+// Beat 16: 审讯选择
+{location:'上午11:00·审讯准备',text:`
+<p>调查暂告一段落。三名嫌疑人已经在不同的房间里等着了——谭小曼在客厅，陆鸣在偏厅，沈青在仓库旁边的工具间。每个人都知道一些你不知道的事。每个人也都隐瞒着一些事。</p>
+<p>你需要决定从谁开始。审讯的顺序会影响每个人愿意说出多少。</p>
+`,choices:[
+{label:'先询问妻子谭小曼——她声称"撞门进入"发现尸体',note:{text:'谭小曼在倾斜馆十五年——身体适应15度斜面。知道仓库密码（结婚纪念日）。知道阁楼通风管构造。声称"整晚在二楼睡觉，什么都没听到"。撞门行为破坏了密室的第一现场。',type:'key',id:'xiaoman_testimony'},next:8},
+{label:'先询问前合伙人陆鸣——案发夜被目击在山路上逗留',note:{text:'陆鸣二十年前被死者骗走所有专利。案发夜共享汽车GPS显示他在距倾斜馆300米处停车20分钟。他看到二楼灯光在凌晨2:15亮着——谭小曼声称在睡觉。',type:'red_herring',id:'luming_gps'},next:9},
+{label:'先询问家政工沈青——她的指纹出现在弹珠柜密码锁上',note:{text:'沈青因母亲重病急需用钱，偷配了仓库钥匙想偷弹珠卖钱。但密码锁三次错误触发警报，她逃跑。她的行为解释了密码锁上的指纹——但她不知道密码，打不开柜子。',type:'background',id:'shenqing_theft'},next:10},
+]},
+// Beat 17: 推理合成
+{location:'',type:'synthesis',text:`
+<p>调查和审讯都已结束。你的笔记本中记录了多条线索——有些是关键证据，有些是干扰信息，有些只是背景事实。</p>
+<p>现在，在做出最终指认之前——你需要从笔记中选出<b>三条</b>你认为最关键的线索。这些线索将决定你的推理是否站得住脚。</p>
+<p>选错了——可能会被误导。选对了——真凶的画像将变得无比清晰。</p>
+`,defaultNext:14},
 ],
-suspects:[{name:'谭小曼',role:'妻子·倾斜馆十五年',avatar:'👩‍🦰'},{name:'陆鸣',role:'前合伙人·被背叛者',avatar:'👨‍💼'},{name:'沈青',role:'家政工·偷弹珠者',avatar:'👩‍🔧'}],
+suspects:[
+{name:'谭小曼',role:'妻子·倾斜馆十五年',avatar:'👩‍🦰',requires:['locked_room_mechanism']},
+{name:'陆鸣',role:'前合伙人·被背叛者',avatar:'👨‍💼',requires:['luming_gps'],badEnding:'<b>误判：陆鸣。</b><br><br>陆鸣在审讯室中发出了一声冷笑。"你们抓了我——但谭小曼现在正在机场。她带着倾斜馆的全部遗产——飞往一个没有引渡条约的国家。你们永远找不到她了。"<br><br>三个月后，陆鸣因证据不足被释放。谭小曼消失在海外。倾斜馆被中国玩具博物馆接收——但再也没有人提起谭正声的名字。案件以误判告终。真相被永远埋在了那三百二十七颗弹珠之下。'},
+{name:'沈青',role:'家政工·偷弹珠者',avatar:'👩‍🔧',requires:[],badEnding:'<b>误判：沈青。</b><br><br>沈青崩溃大哭。"我说了我只是偷弹珠——我没有杀人——我真的没有——"她的声音在审讯室中回荡，但没有人相信。一个家政工，指纹在密码锁上，母亲急需手术费——所有"证据"都指向她，除了真相。<br><br>六个月后，谭小曼在整理丈夫遗物时"无意中"发现了那根烧焦的棉绳和阁楼的打火机。她报警说——"也许我错了。"但沈青已经在看守所中度过了她母亲最后的六个月。倾斜馆的倾斜面——又多了一桩无人知晓的悲剧。'},
+{name:'谭正清',role:'弟弟·遗产继承人',avatar:'👨‍🎓',requires:[],badEnding:'<b>误判：谭正清。</b><br><br>谭正清沉默不语。三个月后——一纸遗产诉讼出现在法院。谭正清的律师主张：谭小曼因"杀害丈夫"丧失继承权，遗产应由谭正声唯一的弟弟继承。<br><br>你忽然意识到——你的误判不仅冤枉了一个无辜的人，还帮另一个人扫清了通往遗产的道路。谭小曼在旁听席上微微一笑。那个笑容——你在审讯室中见过。十五年倾斜生活赋予她的——不仅仅是平衡感。'},
+],
 culprit:0,
 truth:"<b>凶手：谭小曼。</b><br><br>结婚纪念日当晚，丈夫谭正声为她做了红烧排骨——然后告诉她：他已经签了捐赠协议，全部财产——包括倾斜馆——都将在他死后归入中国玩具博物馆。她在倾斜馆生活了十五年——她将自己的身体、认知和全部生命都适应了这个倾斜面——而他连一个房间都不留给她。<br><br>她在愤怒和绝望中走上了一条只有她才能走的道路。她知道仓库密码（0621——那个曾经甜蜜的数字）。她知道阁楼通风管道的走向。她能在十五度倾斜面上悄无声息地行动——十五年让她的内耳重新校准了重力的方向。<br><br>她用弹珠设计了密室——弹珠是丈夫一生最珍视的收藏，她用它来掩盖杀害他的痕迹。阁楼中跪着的压痕、烧焦的棉绳、北墙小孔中的摩擦痕迹——这些都是她在十五年的倾斜生活中留下的坐标。<br><br>当你在审讯室中将她说破的那一刻，她失去的不是平衡——而是十五年来支撑她站立的全部意义。",
 }),
