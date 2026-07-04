@@ -46,8 +46,9 @@ body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml
 .btn-leave:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ── BEAT PANEL ── */
-.beat-panel{background:var(--card);border:1px solid var(--border);padding:28px 26px;margin-bottom:14px;animation:fadeIn .4s ease;line-height:2.2}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.beat-panel{background:var(--card);border:1px solid var(--border);padding:28px 26px;margin-bottom:14px;animation:slideUp .25s ease;line-height:2.2}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .beat-location{font-size:.65rem;letter-spacing:5px;color:var(--accent);margin-bottom:10px;font-family:var(--serif)}
 .beat-text{font-family:var(--serif);font-size:.92rem;color:#bbb;line-height:2.3;text-align:justify}
 .beat-text p{margin-bottom:14px}
@@ -184,9 +185,10 @@ function makeChoice(bIdx,cIdx){
   const ca=CASES.find(x=>x.id===P.currentCase),beat=ca.beats[bIdx],ch=beat.choices[cIdx];
   if(ch.note&&!P.notebook.includes(ch.note))P.notebook.push(ch.note);
   if(ch.effect==='wrong')P.wrongAccusations++;
-  goToBeat(ch.next);
+  document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
+  setTimeout(()=>goToBeat(ch.next),50);
 }
-function continueBeat(){const ca=CASES.find(x=>x.id===P.currentCase),beat=ca.beats[P.currentBeat];if(beat.defaultNext!==undefined)goToBeat(beat.defaultNext)}
+function continueBeat(){const ca=CASES.find(x=>x.id===P.currentCase),beat=ca.beats[P.currentBeat];if(beat.defaultNext!==undefined){document.querySelectorAll('.btn-go').forEach(b=>b.disabled=true);setTimeout(()=>goToBeat(beat.defaultNext),40)}}
 function accuse(si){
   const ca=CASES.find(x=>x.id===P.currentCase);
   if(si===ca.culprit){
