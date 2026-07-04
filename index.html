@@ -273,23 +273,25 @@ function renderAccusation(ca,beat){
 }
 
 function renderSynthesis(ca,beat,beatIdx){
+  const total=P.notebook.length;
+  const need=Math.min(3,total);
   let h=`<div class="synthesis-panel">`;
   h+=`<div class="synthesis-prompt">${ca.synthesisPrompt||'请从调查笔记中选择你认为最关键的线索，以支撑你的指认。'}</div>`;
-  h+=`<div style="font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:12px">选择 3 条线索</div>`;
-  h+=`<div id="synthesisNotes">`;
-  P.notebook.forEach((n,i)=>{
-    const txt=typeof n==='string'?n:n.text;
-    h+=`<div class="synthesis-note-card" id="synote-${i}" onclick="toggleSynNote(${i})"><div class="s-check"></div><div>${txt}</div></div>`;
-  });
+  if(total===0){
+    h+=`<div style="text-align:center;color:var(--muted);padding:20px">你还没有收集到任何线索。直接进入指认吧。</div>`;
+    h+=`<div class="btn-synthesis"><button class="btn btn-continue" onclick="continueBeat()">继续 →</button></div>`;
+  }else{
+    h+=`<div style="font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:12px">选择 ${need} 条线索（共 ${total} 条笔记）</div>`;
+    h+=`<div id="synthesisNotes">`;
+    P.notebook.forEach((n,i)=>{
+      const txt=typeof n==='string'?n:n.text;
+      h+=`<div class="synthesis-note-card" id="synote-${i}" onclick="toggleSynNote(${i})"><div class="s-check"></div><div>${txt}</div></div>`;
+    });
+    h+=`</div>`;
+    h+=`<div class="btn-synthesis"><button class="btn btn-continue" id="btnSubmitSyn" onclick="submitSynthesis(${beatIdx})" disabled>提交推理</button></div>`;
+  }
   h+=`</div>`;
-  h+=`<div class="btn-synthesis"><button class="btn btn-continue" id="btnSubmitSyn" onclick="submitSynthesis(${beatIdx})" disabled>提交推理</button></div>`;
-  h+=`</div>`;
-  // Init selection state
   P._synSelected=P._synSelected||[];
-  P._synSelected.forEach(i=>{
-    const el=document.getElementById('synote-'+i);
-    // will be applied after render via setTimeout
-  });
   setTimeout(()=>{
     P._synSelected.forEach(i=>{const el=document.getElementById('synote-'+i);if(el)el.classList.add('selected')});
     updateSynBtn();
@@ -300,10 +302,11 @@ function toggleSynNote(i){
   P._synSelected=P._synSelected||[];
   const el=document.getElementById('synote-'+i);
   if(!el)return;
+  const max=Math.min(3,P.notebook.length);
   if(P._synSelected.includes(i)){
     P._synSelected=P._synSelected.filter(x=>x!==i);
     el.classList.remove('selected');
-  }else if(P._synSelected.length<3){
+  }else if(P._synSelected.length<max){
     P._synSelected.push(i);
     el.classList.add('selected');
   }
@@ -311,7 +314,10 @@ function toggleSynNote(i){
 }
 function updateSynBtn(){
   const btn=document.getElementById('btnSubmitSyn');
-  if(btn)btn.disabled=(P._synSelected||[]).length!==3;
+  if(!btn)return;
+  const max=Math.min(3,P.notebook.length);
+  if(max===0){btn.disabled=false;return;}
+  btn.disabled=(P._synSelected||[]).length!==max;
 }
 function submitSynthesis(beatIdx){
   const ca=CASES.find(x=>x.id===P.currentCase);
