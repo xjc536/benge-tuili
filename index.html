@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本格推理馆 | 新本格推理解谜游戏</title>
+<style>
+  :root {
+    --bg:#0a0a0a; --card:#121212; --paper:#f0ead8; --ink:#1a1a1a;
+    --accent:#9b1b30; --gold:#b8860b; --green:#3a7d44; --muted:#777;
+    --border:#2a2a2a; --shadow:0 8px 40px rgba(0,0,0,.7);
+    --serif:'Noto Serif SC','Songti SC','SimSun','STSong',serif;
+    --sans:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:var(--sans);background:var(--bg);color:#bbb;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;
+  }
+  body::after{
+    content:'';position:fixed;inset:0;
+    background:radial-gradient(ellipse at 20% 30%,rgba(155,27,48,.06) 0%,transparent 55%),
+              radial-gradient(ellipse at 75% 60%,rgba(184,134,11,.04) 0%,transparent 50%),
+              radial-gradient(ellipse at 50% 80%,rgba(100,100,100,.03) 0%,transparent 40%);
+    pointer-events:none;z-index:0;
+  }
+  .header{text-align:center;margin-bottom:20px;position:relative;z-index:1;}
+  .header .seal{
+    display:inline-block;font-family:var(--serif);font-size:.65rem;letter-spacing:6px;
+    color:var(--accent);border:2px solid var(--accent);padding:4px 14px;
+    margin-bottom:8px;transform:rotate(-3deg);
+  }
+  .header h1{
+    font-family:var(--serif);font-size:2.6rem;font-weight:900;
+    color:var(--paper);letter-spacing:6px;
+    text-shadow:0 0 50px rgba(155,27,48,.3);margin:6px 0;
+  }
+  .header .subtitle{font-size:.85rem;color:var(--muted);letter-spacing:3px;font-family:var(--serif);}
+  .stats{
+    display:flex;gap:20px;align-items:center;background:var(--card);
+    padding:8px 20px;border:1px solid var(--border);margin-bottom:20px;position:relative;z-index:1;
+  }
+  .stats .rank{font-family:var(--serif);font-size:.8rem;color:var(--muted);letter-spacing:2px;}
+  .stats .rank b{color:var(--gold);font-size:1rem;}
+  .stats .sep{width:1px;height:18px;background:var(--border);}
+  .stats .pts{color:var(--gold);font-weight:700;font-size:1rem;}
+  .tabs{display:flex;gap:0;flex-wrap:wrap;justify-content:center;margin-bottom:20px;position:relative;z-index:1;}
+  .tab{
+    padding:9px 15px;border:1px solid var(--border);border-right:none;
+    background:var(--card);color:var(--muted);cursor:pointer;
+    font-size:.78rem;font-weight:600;font-family:var(--serif);letter-spacing:1px;transition:all .2s;
+  }
+  .tab:last-child{border-right:1px solid var(--border);}
+  .tab:hover{color:var(--paper);background:#1c1c1c;}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .card{
+    background:var(--card);border:1px solid var(--border);
+    max-width:740px;width:100%;box-shadow:var(--shadow);position:relative;z-index:1;padding:0;
+  }
+  .card .file-tag{
+    position:absolute;top:14px;right:16px;font-family:var(--serif);font-size:.65rem;
+    color:var(--accent);border:2px solid var(--accent);padding:3px 10px;
+    transform:rotate(6deg);letter-spacing:3px;opacity:.7;pointer-events:none;
+  }
+  .sec{padding:18px 22px;border-bottom:1px solid var(--border);}
+  .sec:last-child{border-bottom:none;}
+  .sec-label{font-family:var(--serif);font-size:.65rem;letter-spacing:5px;color:var(--gold);margin-bottom:10px;}
+  .scene{
+    background:#0f0f0f;border-left:3px solid var(--accent);padding:18px 20px;margin:8px 0;
+    font-family:var(--serif);line-height:2.1;font-size:.9rem;color:#aaa;
+  }
+  .scene .tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;font-size:.65rem;letter-spacing:3px;margin-bottom:10px;font-family:var(--sans);}
+  .floorplan{font-family:'Courier New',monospace;white-space:pre;background:#0a0a0a;color:var(--muted);padding:16px;line-height:1.35;font-size:.75rem;overflow-x:auto;border:1px solid var(--border);margin:8px 0;}
+  .suspects{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;}
+  .suspect{background:#0f0f0f;border:1px solid var(--border);padding:14px;transition:all .2s;}
+  .suspect:hover{border-color:#444;}
+  .suspect .s-name{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--paper);margin-bottom:3px;}
+  .suspect .s-role{font-size:.7rem;color:var(--muted);letter-spacing:1px;margin-bottom:8px;}
+  .suspect .s-info{font-size:.8rem;color:#999;line-height:1.7;}
+  .suspect .s-info b{color:#bbb;}
+  .clue{display:flex;gap:10px;padding:9px 0;border-bottom:1px dotted #1a1a1a;font-size:.85rem;line-height:1.6;align-items:flex-start;}
+  .clue:last-child{border-bottom:none;}
+  .clue-num{flex-shrink:0;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);font-size:.7rem;color:var(--gold);font-family:var(--serif);}
+  .verdict{background:#080808;border:1px solid var(--gold);padding:20px;text-align:center;margin:0;}
+  .verdict .vq{font-family:var(--serif);font-size:1.1rem;color:var(--gold);margin-bottom:14px;letter-spacing:2px;}
+  .opts{display:grid;gap:7px;margin:0 20px 14px;}
+  .opt{padding:13px 16px;border:1px solid var(--border);background:#0f0f0f;color:#bbb;cursor:pointer;font-size:.9rem;text-align:left;font-family:var(--serif);letter-spacing:1px;transition:all .2s;}
+  .opt:hover:not(:disabled){border-color:var(--gold);background:#181818;}
+  .opt.correct{border-color:var(--green);background:#0a1a0a;color:var(--green);}
+  .opt.wrong{border-color:var(--accent);background:#1a0a0a;color:#c44;}
+  .opt:disabled{cursor:not-allowed;}
+  .fb{text-align:center;font-size:1rem;font-weight:700;padding:8px 20px;min-height:22px;font-family:var(--serif);letter-spacing:1px;}
+  .fb.ok{color:var(--green);}
+  .fb.no{color:var(--accent);}
+  .btns{display:flex;justify-content:center;gap:10px;padding:0 20px 18px;}
+  .btn{padding:10px 22px;border:1px solid var(--border);cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--serif);letter-spacing:2px;background:transparent;color:var(--muted);transition:all .2s;}
+  .btn:hover{border-color:var(--gold);color:var(--gold);}
+  .btn-go{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn-go:hover{background:#b01d38;border-color:#b01d38;color:#fff;}
+  .hint{margin:0 20px 10px;background:#1a1a10;border:1px solid #333310;padding:12px 16px;color:var(--gold);font-size:.82rem;font-family:var(--serif);animation:fadeIn .3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  .dm{font-family:'Courier New',monospace;font-size:2rem;text-align:center;letter-spacing:10px;padding:20px;color:var(--accent);background:#080808;border:1px dashed var(--accent);margin:10px 0;}
+  .pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:3.5rem;pointer-events:none;animation:popAnim 1s ease forwards;z-index:100;}
+  @keyframes popAnim{0%{opacity:0;transform:translate(-50%,-50%)scale(0);}50%{opacity:1;transform:translate(-50%,-50%)scale(1.3);}100%{opacity:0;transform:translate(-50%,-50%)scale(1.6);}}
+  .diagram{background:#0a0a0a;border:1px solid var(--border);padding:18px;margin:8px 0;text-align:center;}
+  .diagram pre{font-family:'Courier New',monospace;color:var(--muted);font-size:.8rem;line-height:1.3;display:inline-block;text-align:left;}
+  .diagram .label{font-family:var(--serif);color:var(--gold);font-size:.7rem;letter-spacing:2px;margin-top:8px;}
+  @media(max-width:500px){
+    .header h1{font-size:1.5rem;letter-spacing:3px;}
+    .tab{padding:7px 9px;font-size:.65rem;letter-spacing:0;}
+    .sec{padding:14px;}
+    .suspects{grid-template-columns:1fr;}
+    .scene{font-size:.8rem;}
+    .opts{margin:0 12px 12px;}
+    .btns{padding:0 12px 14px;}
+    .card{max-width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="seal">新本格推理</div>
+  <h1>本 格 推 理 馆</h1>
+  <div class="subtitle">—— 致敬岛田庄司 · 逻辑与诡计的盛宴 ——</div>
+</div>
+
+<div class="stats">
+  <span class="rank">侦探等级 <b id="rankTitle">见习</b></span>
+  <span class="sep"></span>
+  <span class="pts">🕵️ <span id="totalScore">0</span> 分</span>
+  <span class="sep"></span>
+  <span>连胜 <b id="streak" style="color:var(--accent)">0</b></span>
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="card" id="card"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 游戏引擎
+// ═══════════════════════════════════════════════════
+const S={score:0,streak:0,current:null,q:null,done:false,hint:false};
+function u(){
+  document.getElementById('totalScore').textContent=S.score;
+  document.getElementById('streak').textContent=S.streak;
+  const ranks=['见习','初级','中级','高级','名侦探','推理大师','岛田级'];
+  document.getElementById('rankTitle').textContent=ranks[Math.min(Math.floor(S.score/60),6)];
+}
+function c(){
+  const e=document.createElement('div');e.className='pop';
+  e.textContent=['🎩','🔮','✨','🎭','📜'][Math.floor(Math.random()*5)];
+  document.body.appendChild(e);setTimeout(()=>e.remove(),1000);
+}
+function load(k){
+  S.current=k;S.done=false;S.hint=false;
+  const g=GAMES[k];S.q=g.gen();
+  render(g,S.q);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.g===k));
+}
+function render(g,q){
+  const C=document.getElementById('card');
+  C.innerHTML=`
+    <div class="file-tag">案件档案</div>
+    ${q.html}
+    ${q.opts?`<div class="opts">${q.opts.map((o,i)=>`<button class="opt" data-i="${i}" onclick="pick(${i})">${'ABCD'[i]}. ${o}</button>`).join('')}</div>`:''}
+    <div class="fb" id="fb"></div>
+    <div id="ha"></div>
+    <div class="btns">
+      ${q.hint?`<button class="btn" onclick="hint()">💡 提示 (-10分)</button>`:''}
+      <button class="btn btn-go" onclick="nxt()">📋 下一个案件 →</button>
+    </div>`;
+}
+function pick(i){
+  if(S.done)return;S.done=true;
+  const q=S.q,ok=i===q.ans;
+  document.querySelectorAll('.opt').forEach((b,j)=>{
+    b.disabled=true;if(j===q.ans)b.classList.add('correct');if(j===i&&!ok)b.classList.add('wrong');
+  });
+  const f=document.getElementById('fb');
+  if(ok){S.score+=S.hint?15:35;S.streak++;f.textContent='✅ '+(q.praise||'完美的推理！真相只有一个！');f.className='fb ok';c();}
+  else{S.streak=0;f.textContent='❌ '+(q.why||'推理有误，请重新审视线索。');f.className='fb no';}
+  u();
+}
+function hint(){if(S.hint)return;S.hint=true;document.getElementById('ha').innerHTML=`<div class="hint">💡 ${S.q.hint}</div>`;}
+function nxt(){load(S.current);}
+function sec(l,c){return`<div class="sec"><div class="sec-label">${l}</div>${c}</div>`;}
+function sc(c){return`<div class="scene"><span class="tag">案发现场</span><br>${c}</div>`;}
+
+// ═══════════════════════════════════════════════════
+// GAMES 定义
+// ═══════════════════════════════════════════════════
+const GAMES={};
+
+// ── 案件一：占星术连环杀人 ────────────────────────
+// 灵感：岛田庄司《占星术杀人事件》
+// 核心诡计：三人共犯结构 + 星座几何 + 完全人体计划
+GAMES.zodiac={
+  icon:'🔮',title:'占星术杀人',desc:'六名受害者、十二宫之谜——以星辰之名铺开的连环杀人案',
+  gen(){
+    const s={title:'占星术连环杀人事件',victim:'受害者六名：均为年轻女性。尸体发现地点遍布全国——从最北的漠河到最南的三亚。',scene:`<b>第一现场</b>——黑龙江漠河。雪原中发现一名年轻女性的<b>头部</b>。周围积雪上留下了一圈圈圆形足迹，呈同心圆排列。<br><br><b>第二现场</b>——河南洛阳。龙门石窟附近的山岩上，摆放着一名女性的<b>右臂</b>。岩石表面用粉笔绘有北斗七星的星图。<br><br><b>第三现场</b>——云南大理。崇圣寺三塔后方，发现一名女性的<b>左臂</b>。旁边的古柏树干上刻着一个字母"A"。<br><br>剩余部位——躯干、右腿、左腿——至今下落不明。六名受害者唯一的共同点：<b>她们的生日分别属于十二星座中的六个不同星座</b>。失踪前，她们都曾在社交网络上提起过一个词——<b>"完全人计划"</b>。`,suspects:[{name:'段星河 (48)',role:'前天文学家。十年前因提出"天体-人体对应假说"被学术界驱逐。',info:'<b>动机：</b>报复学术界。用犯罪"证明"自己的理论。<br><b>行踪：</b>第一起命案发生时，他正在漠河参加一场天文观测活动——距现场仅三十分钟车程。<br><b>疑点：</b>其书房中发现大量笔记，绘制着十二星座与人体各部位的精确对应图，标注极为详细。'},{name:'苏晓星 (35)',role:'新兴宗教"星辰会"的创始人。年轻、极富魅力的女性精神领袖。',info:'<b>动机：</b>其教义中记载着用人体拼凑"星之躯"的古老秘仪。六名受害者中，有三名曾是该教信徒。<br><b>行踪：</b>所有案件发生的时间段，她都在北京总部举行大型祈祷会——数百名信徒可为她作证。<br><b>疑点：</b>其住所地下室内，地板上用油漆绘有一幅巨大的星图，星图上方摆放着六个人形轮廓——轮廓边缘检出微量血迹，血型与其中一名受害者吻合。'},{name:'秦漠 (29)',role:'自由记者。专攻猎奇事件的报道，正在系列连载此案的深度调查。',info:'<b>动机：</b>此案是他职业生涯最大的机遇——连载越久，收益越高。案件一旦告破，他的独家报道便宣告终结。<br><b>行踪：</b>第二、第三现场中，他均比警方更早抵达现场——实际上，他就是拨打报警电话的第一人。<br><b>疑点：</b>其电脑中发现了六名受害者详细的个人信息（出生日期、星座、血型、籍贯），检索时间均在第一名女子失踪之前。他解释为"选题调研"。'},],clues:['从漠河到大理——六处抛尸地点的经纬度连线后，呈现出<b>北斗七星</b>的形状。最后两颗星的位置尚未发现尸体——那应该是剩余两个部位的所在之处。','凶器鉴定为同一把利刃——刃口呈特殊的波浪形。然而刀身上<b>未检出任何指纹</b>，显然经过专业处理。','"完全人"一词源自炼金术典籍，指由多种元素拼合而成的完美生命体。六名受害者分属六个不同星座——恰好覆盖了黄道十二宫的半数。另外六个星座的女性是否也面临危险？','第二现场的粉笔星图——仔细观察后发现，它不仅是一幅星图，也是一个<b>方向指示符</b>。所有箭头汇聚的方向，指向陕西秦岭深处。','秦漠在第一名受害者失踪前<b>三个月</b>，就已用"命理师"的假身份添加了所有受害者的社交账号，与她们建立了联系。','苏晓星地下室的人形轮廓——其足部位置检出<b>微量血迹</b>。DNA 比对结果与第三名受害者完全吻合。','段星河的笔记中有一页被撕去——但下一页的压痕显示，被撕掉的那页上面画着一个由六个人体部位拼成的完整人形，下方写着"完全人=神"四个字。'],question:'谁是这一系列连环杀人案的真凶？"完全人计划"究竟是什么？',opts:['段星河——疯狂的天文学家要以人体验证他的伪科学理论','苏晓星——教主利用信徒执行了"星之躯"的黑暗仪式','秦漠——记者为了独家新闻自导自演了整个案件','三人均为共犯——天文学家提供理论、教主提供场所、记者物色目标'],ans:3,hint:'秦漠提前三个月就已锁定所有受害者——这是"物色者"的行为。苏晓星的地下室有人形轮廓和血迹——这是"仪式场地"。段星河的笔记有完整的理论体系——这是"计划书"。三个人各司其职。没有人能独自完成这六起跨省杀人案。',praise:'精彩绝伦的推理！"完全人计划"——天文学家、教主、记者，三位一体的疯狂共谋被彻底揭穿！',why:`<b>正确答案：三人共犯。</b>
+1. <b>段星河（策划者）</b>：提供天文学和人体对应理论。"完全人计划"的蓝本出自他手。笔记压痕是铁证。
+2. <b>苏晓星（执行场所提供者）</b>：地下室是仪式核心场地。血迹 DNA 与受害者吻合——她无法抵赖。
+3. <b>秦漠（物色者与情报员）</b>：以命理师身份接触所有受害者，筛选出符合"星座条件"的目标。提前三个月就开始行动。他还利用记者的身份第一时间"发现"尸体，既能控制舆论方向，又能第一时间清理现场残留证据。
+4. 三人各自独立的不在场证明在单独审视时均有破绽——但只有将三人联系到一起，才能看到拼图的全貌。段星河的理论 + 苏晓星的场地 + 秦漠的人选 = 连环杀人得以实现的基础。
+5. <b>"完全人"从来不是一个人的妄想——而是三个疯子的合谋。</b>
+<b>核心：<i>"每个人只做了一部分，但合在一起就是完整的罪行。"</i></b>`,
+    };return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案件概要',sc(s.scene))}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">🔮 ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ── 案件二：倾斜之馆 ────────────────────────────
+// 灵感：岛田庄司《斜屋犯罪》
+// 核心诡计：15度倾斜建筑 + 弹珠物理密室
+GAMES.slanted={
+  icon:'🏚️',title:'倾斜之馆',desc:'雪山中的怪异建筑——整个房子向南倾斜15度。密室之中，弹珠散落一地……',
+  gen(){
+    const s={title:'倾斜之馆杀人事件',victim:'谭正声 (68)。退休玩具设计师。独自居住在四川贡嘎山麓的"倾斜馆"中。',scene:`<b>倾斜馆</b>——名副其实，整栋建筑向南倾斜了<b>15度</b>。从外观上看如同一栋即将倒塌的危楼，内部则更为诡异：所有房间的地面都是倾斜的。住在里面的人，日常行走需要时刻对抗重力带来的失衡感。<br><br>主人谭正声被发现死于<b>顶层（三楼）"倾斜之间"</b>。死因为利刃刺穿心脏。房间的门从内侧反锁，钥匙在死者睡衣口袋中找到。窗户位于高达8米的光滑墙面上——外面是茫茫雪原，没有任何可供攀爬的着力点。<br><br><b>最离奇之处</b>——死者周围的地板上，散落着<b>数百颗玻璃弹珠</b>。其中数颗弹珠沾有血迹。房间北侧（倾斜的高处）墙壁上，赫然开着一个直径约2厘米的小孔。`,suspects:[{name:'谭小曼 (40)',role:'死者之妻。与丈夫共同居住在倾斜馆十五年。',info:'<b>动机：</b>丈夫身后留下的巨额遗产。然而丈夫最近公开宣布要将全部财产捐给"中国玩具博物馆"——她将一无所得。<br><b>行踪：</b>第一发现者。她声称"早晨丈夫没有回应，担心出事，于是撞开了房门"。<br><b>疑点：</b>十五年的倾斜馆生活，使她的身体对倾斜面<b>完全适应</b>——在15度斜坡上行走如履平地。这是其他人不具备的能力。'},{name:'陆鸣 (45)',role:'死者的前商业合伙人。二十年前共同经营玩具公司。',info:'<b>动机：</b>二十年前，谭正声用一份精心设计的合同将陆鸣踢出公司，独占所有专利。陆鸣此后一蹶不振，至今仍靠打零工维持生计。<br><b>行踪：</b>案发前夜，他入住山脚下的小镇旅店。旅店监控确认他当晚在房间内。但次日清晨，旅店老板发现他房间的窗户大开。<br><b>疑点：</b>当晚有人在山路上目击了一辆共享汽车——租用记录显示租车人正是陆鸣。租用时段为凌晨1:00至4:00——恰好覆盖推测的死亡时间。'},{name:'沈青 (32)',role:'倾斜馆的家政工。每周三次上山打扫。',info:'<b>动机：</b>死者在过去半年中多次对她进行骚扰。她在一个月前递交了辞职信——但死者拒绝接受，并将辞职信撕毁。<br><b>行踪：</b>案发当天是她的休息日，她说自己整天待在镇上的出租屋里。但没有人能为她作证。<br><b>疑点：</b>法医在她手指上检出了<b>玻璃弹珠的专用润滑油成分</b>——这是大量处理弹珠才会留下的痕迹。她解释为"打扫时接触过"，但死者收藏的弹珠平日都锁在一楼的仓库中，家政工没有仓库钥匙。'},],clues:['<b>密室的物理逻辑：</b>门从内侧反锁。窗户无法出入。没有第三出入口。那么凶手是如何进出"倾斜之间"的？——答案必然与<b>15度倾斜</b>这个独特条件有关。','<b>弹珠的来源：</b>散落在尸体周围的弹珠，经辨认属于死者收藏的"七十年代绝版玻璃弹珠"系列。这套弹珠本应锁在一楼仓库的展示柜中。仓库门锁没有破坏痕迹——凶手要么有钥匙，要么通过其他方式取得了弹珠。','<b>墙壁小孔：</b>北侧墙壁上直径2厘米的小孔。经探查，小孔<b>恰好与阁楼的通风管道在一条直线上</b>。从阁楼通风口可以轻松将一根细长的棒状物伸入这个孔中。','<b>15度的物理学意义：</b>15度——这恰好是玻璃弹珠在木地板上<b>自发滚动所需的最小倾角</b>。弹珠不需要外力推动，只需释放，就会沿着倾斜面一路滚向房间南侧。','<b>北侧地板上的长方形压痕：</b>在北墙（高处）的地板上，有一处隐约的长方形压痕，约40厘米×30厘米。似乎有什么重物曾在此处放置过——但现在那里空无一物。','<b>死亡时间：</b>法医推定死亡时间在凌晨2:00至3:00之间。陆鸣租用共享汽车的时间为1:00至4:00——他有往返倾斜馆的充裕时间。但旅店到倾斜馆单程车程约45分钟——这意味着陆鸣实际在馆内最多只有一小时。'],question:'密室是如何构成的？利用了什么物理原理？真凶是谁？',opts:['谭小曼——妻子利用弹珠和倾斜面构造了物理密室','陆鸣——前合伙人从阁楼通风口潜入，用弹珠掩盖痕迹','沈青——家政工拥有仓库钥匙，偷出弹珠制造混乱','意外事故——谭正声被弹珠滑倒，手中的工艺刀意外刺入胸口'],ans:0,hint:'弹珠 + 15度倾斜 + 墙壁小孔 + 通风管 + 北侧地板的压痕。想象一个装满弹珠的箱子放在北墙边（倾斜的高处）。箱子的开口朝南（朝低处）。用什么方法可以在房间外面让箱子打开，让弹珠倾泻而出？墙壁上的小孔和阁楼的通风管给出了答案。',praise:'太精彩了！利用重力与斜面构造的密室——这是只有玩具设计师之妻才能完成的完美物理诡计！',why:`<b>真凶：谭小曼（妻子）。</b>密室的核心是弹珠与重力的配合：
+1. 谭小曼杀害丈夫后，将<b>装满弹珠的木箱</b>摆放在房间北侧（倾斜的高处），箱子开口朝向南方（低处）。箱子用一根细绳捆绑着——绳子的另一端穿过墙壁上直径2厘米的小孔，延伸到阁楼的通风管道中。
+2. 她将房门从内侧锁好，钥匙放入死者睡衣口袋。然后通过其他方式离开房间（她完全可能持有备用钥匙从外部反锁——"撞门"本身就是表演）。
+3. 从阁楼通风口，她拉动细绳——绳子从小孔中滑出——捆住木箱的绳结松开——箱中数百颗弹珠因<b>15度倾斜而一泻而出</b>——弹珠在倾斜面上滚动，覆盖了地面上所有的足迹和微小痕迹。
+4. 弹珠滚动的同时，<b>恰好推动尸体旁的钥匙滑入更隐蔽的位置</b>——或者，弹珠本身就覆盖了所有肉眼可见的线索。
+5. 北侧地板的长方形压痕——是木箱留下的。她事后寻机收走了木箱。
+6. 她在倾斜馆生活了十五年，身体完全适应了倾斜面——只有她能在15度斜坡上悄无声息地完成这一系列操作。
+<b>核心：重力——这个宇宙中最基本的力，成了最完美的帮凶。</b>`,};return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案发现场',sc(s.scene)+`<div class="floorplan">        【倾斜馆 剖面图 —— 向南倾斜15度】
+                    ┌──────────┐
+             三楼   │ 倾斜之间 │ ← 尸体发现现场
+                    │  ┌─┐    │    密室（内侧反锁）
+                    │  │尸│    │    地板上散落数百颗弹珠
+             二楼   │  │  │    │
+                    │  │  │    │    北墙有直径2cm小孔
+             一楼   │  │  │    │    ↓ 连接阁楼通风管道
+                    └──┴──┴────┘
+                    南 ← 15° → 北
+</div>`)}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">🏚️ ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ── 案件三：水晶密室 ────────────────────────────
+// 灵感：岛田庄司《水晶金字塔》
+// 核心诡计：完全密封的玻璃金字塔 + 表演性死亡
+GAMES.crystal={
+  icon:'💎',title:'水晶密室',desc:'密封的玻璃金字塔中心，一具尸体静静躺着。氧气被抽干的完美密室。',
+  gen(){
+    const s={title:'水晶金字塔杀人事件',victim:'宋明哲 (55)。知名当代艺术家。其作品"水晶金字塔"在展览开幕前夜成为他的葬身之地。',scene:`深圳。现代艺术馆的中央广场上，矗立着一座巨大的<b>玻璃金字塔</b>——边长8米的正四角锥，全部由厚达3厘米的强化玻璃构成。金字塔的每一块玻璃板之间的接缝，均以工业级硅酮密封胶严格封闭。<b>完全密封——连气体也无法通过。</b><br><br>开幕当天早晨，工作人员发现艺术家宋明哲安详地躺在金字塔正中央，宛如安眠的法老。但走近一看——他已经没有了呼吸。死因为<b>窒息</b>。金字塔内部的氧气被某种方式消耗殆尽。<br><br>尸体旁边，端端正正地摆放着一根<b>已完全燃尽的巨大蜡烛</b>。蜡烛的火焰烧到了最后一滴蜡油——这意味着蜡烛在金字塔内部燃烧过，将密封空间内的氧气消耗殆尽。`,suspects:[{name:'宋婉清 (50)',role:'死者之妻。退休舞台美术设计师。',info:'<b>动机：</b>丈夫身负巨额债务，夫妻二人的共同财产即将被法院查封。但丈夫死后，以他个人名义投保的高额寿险将全额赔付——这笔钱不会被冻结。<br><b>行踪：</b>她是该艺术项目的"执行助理"，全权负责玻璃材料的采购和施工安排。最后一块玻璃板——金字塔的封口——是由她亲手安装的。<br><b>疑点：</b>她在案发前一天晚上，支开了所有施工人员，独自一人完成了"最后的封板"。她说这是艺术家的要求——"金字塔的最后一扇门必须由最亲近的人亲手关上"。'},{name:'顾远 (42)',role:'艺术馆执行馆长。宋明哲个展的总策划。',info:'<b>动机：</b>艺术品市场中有一条残酷的铁律——<b>死后成名的艺术家，其作品价值会飙升数十倍</b>。如果宋明哲在个展开幕日"死于自己的作品之中"，这个事件本身将成为艺术史上最轰动的传奇。而顾远——作为发现者和策展人——将随着这个故事名垂青史。<br><b>行踪：</b>他有整个艺术馆的监控系统管理权限，也有调配施工设备和人员的权力。<br><b>疑点：</b>展览原定名称为"透明之光——宋明哲玻璃艺术展"。但在尸体被发现后的两小时内，顾远就将展览名称改为<b>"法老之眠——宋明哲·永恒的金字塔"</b>。反应之迅速令人不寒而栗。'},{name:'沈鹤鸣 (31)',role:'宋明哲的关门弟子。跟师十年，近期宣布独立发展。',info:'<b>动机：</b>他准备了五年的代表作即将在本次个展中亮相——但宋明哲临时将该作品以自己的名义展出，并将沈鹤鸣的名字从创作者一栏中完全移除。<br><b>行踪：</b>他精通玻璃加工工艺，有能力操作硅酮胶对玻璃板进行密封作业。<br><b>疑点：</b>案发前三天，他在五金市场购买了一台<b>工业级氧气瓶</b>。他解释为"焊接作品用"——但他的作品全部采用冷加工工艺，不需要焊接。'},],clues:['<b>蜡烛与氧气：</b>如果蜡烛在密封空间内燃烧至尽，意味着金字塔内部原本存在可燃气体环境——即<b>正常空气</b>。蜡烛燃烧消耗了氧气，导致内部变为缺氧环境。问题在于——宋明哲为什么要和一根蜡烛一起把自己封在金字塔里？','<b>硅酮胶的疑点：</b>金字塔四面玻璃的接缝中，<b>北面玻璃板的密封胶与其他三面不同</b>——颜色更白、质地更新，明显是最近24小时内才施工的。另外三面的密封胶已硬化至少一周以上。','<b>氧气瓶的调查：</b>沈鹤鸣购买的氧气瓶容量为40升——但他在工作室中只使用了约5升（据其焊机消耗记录）。<b>剩余35升氧气去向不明。</b>','<b>艺术馆的监控录像：</b>案发前一天晚上21:30——即宋婉清安装最后一块玻璃板之前约一小时——监控拍到<b>宋明哲独自走入金字塔</b>的画面。那是他最后一次出现在监控中。22:15，宋婉清开始安装最后一块玻璃板，完成金字塔的最终密封。','<b>宋明哲的银行流水：</b>案发前一个月，他的账户分别向宋婉清、顾远、沈鹤鸣三人各转入了一笔相同金额的款项——每笔20万元。备注均为"借款"。但这三笔"借款"在案发后没有任何人提起过。','<b>金字塔内部的气压痕迹：</b>内壁玻璃上检测到微弱的<b>气压波动痕迹</b>——法医专家认为，这表明金字塔内曾发生过一次快速的气体体积变化。蜡烛燃烧不会产生这种痕迹。'],question:'宋明哲之死是谋杀还是精心策划的自我了断？如果是后者，他为什么要这么做？',opts:['宋婉清谋杀亲夫——将丈夫锁入金字塔，让他窒息而死','宋明哲策划的表演性自杀——用死亡完成最后的艺术杰作','顾远为牟利而谋杀——制造"传奇艺术家之死"从中获利','沈鹤鸣复仇杀人——利用氧气瓶在金字塔内制造了缺氧环境'],ans:1,hint:'监控录像显示宋明哲主动走入金字塔——这不是被强迫的。他向三个人各转了20万元——这更像是"告别赠金"而非"借款"。蜡烛在内部燃尽说明他自带了蜡烛——他知道自己将不会再出来。这一切都指向一个精心安排的计划。',praise:'这正是岛田庄司式的终极反转——不是谋杀，而是以死亡为材料的最后一件艺术品！艺术家将自身化为作品，完成了生与死的边界跨越。',why:`<b>正确的结论：这是宋明哲本人策划的表演性自杀。</b>
+1. <b>监控录像是决定性证据：</b>宋明哲于21:30独自走入金字塔——没有胁迫、没有挣扎。他是自愿的。
+2. <b>三笔20万元的"借款"：</b>这是宋明哲向生命中三个重要的人——妻子、策展人、弟子——送上的最后一笔钱。他称之为"借款"是为了避免引起怀疑。三人都选择在案发后绝口不提——因为他们意识到这笔钱可能是"封口费"或"告别赠金"。
+3. <b>蜡烛是他的选择：</b>宋明哲计算过金字塔内部空气的含氧量。一根特大蜡烛燃烧约需消耗与人体相同的氧气量。他点燃蜡烛后安静地等待——蜡烛燃尽，他也随之而去。这是经过精密计算的。
+4. <b>为什么选择这种方式？</b>宋明哲身陷巨额债务，艺术声誉也在下滑。但他是一个极度的完美主义者——平庸地死去是不可接受的。于是他构思了这件终极作品：<b>"艺术家自身化为法老，在水晶金字塔中获得永生"</b>。
+5. 沈鹤鸣的氧气瓶、顾远的改名、宋婉清的封板——都是事后的行为。他们不是凶手，但每个人都从宋明哲的死亡中看到了属于自己的利益。他们选择了沉默——而这种沉默，让一场自杀看起来像一场谋杀。
+<b>核心：<i>最完美的犯罪，不是杀人，而是让所有人发自内心地希望你死。</i></b>`,};return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案发现场',sc(s.scene)+`<div class="diagram"><pre>         ▲
+        /█\\
+       / █ \\
+      /  █  \\       全密封玻璃金字塔
+     /   █   \\     边长 8m 正四角锥
+    /    █    \\    内部：尸体 + 燃尽的蜡烛
+   /     █     \\
+  /      █      \\
+ /_______█_______\\
+└───────────────┘
+   最后密封面 → 北侧（密封胶最新）
+</pre><div class="label">水晶金字塔剖面图</div></div>`)}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">💎 ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ── 案件四：眩晕迷案 ────────────────────────────
+// 灵感：岛田庄司《眩晕》
+// 核心诡计：全镜面六角形房间 + 光学反射制造多人假象
+GAMES.vertigo={
+  icon:'🌀',title:'眩晕迷案',desc:'六面镜壁的馆中，三人目击了三个不同的凶手。光与反射编织的迷宫。',
+  gen(){
+    const s={title:'眩晕——镜馆杀人事件',victim:'林镜 (38)。"镜馆"的主人。馆内所有墙壁、地板、天花板均为镜面，在此中待上五分钟即会产生严重的方向迷失。',scene:`<b>镜馆</b>——一座六角形的单层建筑。踏入馆内的瞬间，你会看到<b>无数个自己</b>从各个方向凝视着你。所有的墙面、地板、天花板都由镜面构成——六角形的几何结构使得光线在馆内以极其复杂的方式多次反射。<br><br>林镜被人发现死在自己的书桌前，心脏部位被利器刺穿。凶器是她自己收藏的一把古董裁纸刀——刀刃修长，刀柄为象牙材质。<br><br><b>最诡异的是目击证词：</b>案发时有三个人在馆内。三个人都声称自己<b>"看到了凶手"</b>——但他们描述的凶手形象<b>截然不同</b>。第一个人说凶手是"穿黑色外套的男人"；第二个人说是"穿白色长裙的女人"；第三个人说是"穿红色衣服的人（性别不明）"。`,suspects:[{name:'林远 (42)',role:'死者之夫。建筑设计师。镜馆正是由他亲手设计并监督施工的。',info:'<b>动机：</b>妻子名下拥有巨额家族遗产。他的建筑事务所最近陷入了严重的财务危机——如果无法获得妻子的资金注入，公司将在三个月内破产。而妻子已经提出了离婚。<br><b>行踪：</b>案发时他在馆内"东侧小室"——据他自己所说，从小室看不到中心书桌的位置。<br><b>疑点：</b>他是镜馆的设计师——这意味着<b>他知道每一面镜子的角度、每一束光的反射路径</b>。在这座镜之迷宫中，他是唯一不会迷路的人。'},{name:'苏青青 (29)',role:'死者之妹。青年画家。',info:'<b>动机：</b>姐姐多年来一直在暗中打压她的艺术发展——她向画廊老板散布妹妹"抄袭"的谣言。姐姐死后，她不仅获得自由，还能继承家族在艺术圈的所有人脉。<br><b>行踪：</b>案发时她在馆内"西侧小室"写生。她说自己透过层层镜面反射看到了现场——于是<b>画下了凶手的形象</b>。画中凶手是一个"穿白色长裙的女人"。<br><b>疑点：</b>她的画作中，凶手握着裁纸刀的手是<b>左手</b>。法医检验确认——致命伤的角度确实显示行凶者很可能是<b>左利手</b>。但苏青青本人是右利手。'},{name:'程刚 (45)',role:'负责此案的刑警队长。但他与死者之间存在不可告人的关系。',info:'<b>动机：</b>他与死者保持了近两年的婚外情。最近死者威胁要公开这段关系——这将彻底毁掉他的职业生涯和家庭。<br><b>行踪：</b>案发时他作为"第三目击者"在现场——他声称自己是来找林镜"谈工作"的。但他拨打报警电话的时间是案发后约三十分钟。<br><b>疑点：</b>他声称看到"穿红色衣服的人"——但馆内当时没有任何人穿红色衣服。讽刺的是，他当天戴了一条<b>大红色的领带</b>。'},],clues:['<b>三个目击者的矛盾：</b>黑外套男 / 白裙女 / 红衣人——三个人描述了三个不同的凶手。但案发时馆内只有三个人。','<b>镜面的几何学：</b>六角形的每个内角为120度。林远在设计时，将六面镜壁的角度做了微调——<b>某些镜面不是严格的平面，而是带有微小的弧度</b>。这意味着从特定位置看去，A区域的人物镜象可以与B区域的人物镜像重合——创造出一个不存在的"第三人"形象。','<b>裁纸刀上没有指纹：</b>刀柄被仔细擦拭过——没有留下任何指纹。但有经验的技术人员指出——<b>擦拭痕迹只存在于刀柄的右半侧</b>。左半侧虽然也没有指纹，但没有擦拭痕迹。这说明——<b>凶手是用左手握刀的</b>，所以只需要擦拭手指接触到的右半侧。','<b>左利手排查：</b>林远是左利手。苏青青是右利手。程刚是右利手。','<b>苏青青画作的秘密：</b>画中凶手的白裙——仔细辨认后，可以从裙摆的褶皱走向看出——<b>这不是一件真实的白裙，而是镜中倒影的描绘</b>。镜面反射会左右翻转——而裙子褶皱的方向暴露了这一点。','<b>程刚的红领带：</b>在六角形镜馆中，红色领带经过多次反射后，在某个特定的镜像角度中——<b>领带的红色充满了镜中人物的上半身</b>，使其看起来像是"穿着红色衣服的人"。而程刚本人穿着黑色警服——所以他看到的"红衣人"正是他自己在特定角度下的变形象。'],question:'综合光学镜像、利手证据与动机——真凶是谁？为何三人描述不同？',opts:['林远——建筑设计师之夫。利用镜面光学知识制造混乱，加上左利手物证吻合','苏青青——妹妹。画作是"先画后演"——她画下的是自己作案时的镜像','程刚——刑警队长。他利用职务之便在报警前有半小时清理证据','光学原理下无法确定——镜像扭曲使所有目击证词都不具备证据效力'],ans:0,hint:'裁纸刀上的擦拭痕迹只存在于右半侧→说明凶手用左手握刀。馆内只有林远是左利手。三个目击者看到的"不同凶手"——黑外套（林远本人）、白裙（林远的镜面反射与苏青青的白裙重叠形成的虚像）、红衣（程刚的红领带经镜面放大后的变形象）——三人看到的其实是同一个人的不同镜像。',praise:'光学与罪行的完美结合！六角镜馆——设计师用光学原理创造了一个"视觉不在场证明"，但左手出卖了他。',why:`<b>真凶：林远（建筑师之夫）。</b>
+1. <b>左利手是决定性物证：</b>裁纸刀上只有右半侧被擦拭→凶手是左撇子→馆内只有林远是左利手。这是无法反驳的物理事实。
+2. <b>三个目击者的"不同凶手"其实是同一人：</b>
+   — 目击者A看到的"黑外套男人" = 林远的真实身影（他行凶时穿着黑色外套）
+   — 目击者B看到的"白裙女人" = 林远在镜中的身影，与苏青青身上白裙的镜像在某一角度重叠，形成了一个"白裙女人持刀"的合成虚像
+   — 目击者C看到的"红衣人" = 程刚自己的红色领带在曲面镜中被放大变形，与林远移动中的黑影结合产生的错觉
+3. <b>林远的优势：</b>作为镜馆的设计师，他知道每一个角度、每一面镜子的曲率、每一条反射路径。他可以在馆内精确地选择站位和行动路线——让自己在特定时刻只出现在特定目击者的特定视角中。
+4. <b>动机：</b>妻子提出离婚→他将失去所有资金来源→建筑事务所破产→人生毁灭。他不允许这一切发生。
+<b>核心：<i>最完美的伪装，不是藏在黑暗中——而是将自己的形象分解成碎片，散落在六面镜壁之中。</i></b>`,};return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案发现场',sc(s.scene)+`<div class="diagram"><pre>     【镜馆 —— 六角形平面】
+
+          ┌─────┐
+         / ╲   ╱ \\
+        /   ╲ ╱   \\      所有墙面+地板+天花板=镜面
+       │  W  尸  E  │
+       │      │    │      W = 苏青青（西侧小室）
+        \\    / \\    /      E = 林远（东侧小室）
+         \\  /   \\  /      尸 = 林镜的遗体
+          └─────┘
+           ↑
+     程刚的位置（红领带）
+</pre><div class="label">六角形镜馆平面 / 光线多重反射路径示意</div></div>`)}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">🌀 ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ── 案件五：异邦骑士 ────────────────────────────
+// 灵感：岛田庄司《异邦骑士》
+// 核心诡计：飞行器+替身的不在场证明 + 国际象棋暗号
+GAMES.knight={
+  icon:'♞',title:'异邦骑士',desc:'横跨两座城市的不可能犯罪——同一时刻，他在上海杀人，又在北京演讲。',
+  gen(){
+    const s={title:'异邦骑士——双城杀人事件',victim:'常伯谦 (60)。享誉国际的中国象棋特级大师，同时也是一名出色的国际象棋棋手。',scene:`上海·浦东。某五星级酒店的行政套房内。常伯谦被发现死于书桌前，面前摆着一盘还未下完的国际象棋残局。死亡原因：咖啡杯中被投入了<b>氰化物</b>。一杯喝到一半的拿铁，杯沿残留着白色粉末。法医推定死亡时间为<b>当晚22:00前后</b>。<br><br>然而——常伯谦当晚原定要对弈的对手，国际象棋大师<b>亚历山大·奈特（Alexander Knight，英国人）</b>，在那个时刻正<b>在北京国家会议中心进行一场面向五百名观众的公开演讲</b>。演讲时间为21:30至22:30。主办方和数百名观众可以作证。从北京到上海，即使坐高铁也需要四个半小时——<b>22:00在上海杀人、同时在北京演讲，这在物理上不可能</b>。`,suspects:[{name:'亚历山大·奈特 (38)',role:'英国国际象棋大师。常伯谦的多年对手。他的名字"Knight"在国际象棋中意为"骑士"。',info:'<b>动机：</b>常伯谦掌握了他使用AI作弊的录像证据。一旦曝光，奈特的职业生涯将彻底终结——所有冠军头衔、所有赞助合同、所有荣誉，都将归零。<br><b>不在场证明：</b>北京国家会议中心21:30-22:30公开演讲。五百名观众 + 主办方 + 媒体直播。酒店监控全程记录了他的行动轨迹。<br><b>疑点：</b>案发前一天，奈特曾在<b>上海</b>的同一家酒店登记入住（21:00）。他说是"提前来适应场地"——但第二天一早退了房飞往北京。这趟"多余"的上海之行中，他究竟做了什么？'},{name:'常夫人 (35)',role:'死者之妻。前空姐。',info:'<b>动机：</b>丈夫名下有数千万的赛事奖金和商业代言合约。丈夫死后，她作为唯一继承人将获得全部财产。婚姻早已名存实亡——她有一个年轻情人。<br><b>行踪：</b>案发当晚她称自己在上海家中。但有邻居目击她于21:40拎着行李上了出租车。<br><b>疑点：</b>前空姐——她仍保有航空公司员工折扣。查询购票记录后发现，<b>她名下的账号于案发当天购买了一张上海→北京→上海的当日往返机票</b>。她解释说买票是为了"帮朋友查价格"。'},{name:'方奎 (55)',role:'常伯谦的经纪人。嗜赌成性。',info:'<b>动机：</b>过去五年间，他从常伯谦的赛事奖金中秘密挪用了将近两百万。常伯谦最近要求全面审计账目——方奎的末日即将到来。<br><b>行踪：</b>案发当晚他在上海另一家酒店与赛事赞助商会面——会议于21:00结束。之后的行踪无人确证。22:40回到家。<br><b>疑点：</b>常伯谦临死前在便签纸上写下了一行字——<b>"Knight to E5"</b>。这是国际象棋的记谱法。但这盘残局中根本没有骑士（Knight）需要移动到E5——这是一步毫无意义的棋。常伯谦临终前为什么要写一个无意义的棋步？'},],clues:['<b>"Knight to E5"：</b>这是常伯谦最后的遗言。国际象棋中E5格位于棋盘的正中心。而中国象棋中——"五·五"也是棋盘的正中心。如果把它作为暗号来解读——<b>Knight（奈特/骑士）→ to → E5（中心/目标）</b>。常伯谦想说的是什么？','<b>国际象棋骑士与中国象棋马的差异：</b>国际象棋的Knight走"L"形（直二横一），中国象棋的马走"日"字形（直一横二再直一）。两者看似相似，实则不同——<b>Knight可以到达棋盘上任何一个格子，而中国象棋的马有"蹩脚"的限制</b>。','<b>上海酒店的监控疑点：</b>死亡推定时间22:00前后，酒店监控中确实没有奈特的身影——但21:45有一个<b>体形与奈特极其相似的人</b>进入了酒店电梯。此人戴着棒球帽和口罩，无法辨认面部。他穿的外套与奈特前一天入住时穿的外套是<b>同一品牌同一款式</b>。','<b>奈特的手机信号：</b>21:50，常伯谦的手机接到了来自奈特的来电——通话时长三分钟。奈特说"只是聊明天的对局"。<b>而这通电话打来时，奈特正在北京的演讲台上。</b>','<b>隐匿的航班记录：</b>案发当天，有一张以"Alex Knight"名义购买的机票——<b>北京大兴→上海虹桥，18:00起飞，19:30落地</b>。而21:30奈特又在北京出现了。这意味着——如果北京18:00飞上海，他不可能在21:30回到北京演讲。<b>除非存在两张机票——一去、一回。</b>回程航班：<b>上海虹桥→北京大兴，22:30起飞，00:05落地</b>——同样在"Alex Knight"名下。','<b>替身的可能性：</b>演讲台上灯光强烈，观众与演讲者之间的距离超过二十米。如果台上的人穿着相同的西装、梳着相同的发型、说着带有英国口音的英语——五百名观众中，有谁能分辨那真的是奈特，还是一个精心准备的替身？'],question:'亚历山大·奈特如何实现"同一时刻在上海杀人、在北京演讲"？"Knight to E5"是什么意思？',opts:['演讲台上的奈特是替身——真人往返京沪完成杀人','利用飞机往返——18:00飞上海、22:30飞回北京，物理上可行','常伯谦的死亡推定时间有误——实际死亡时间更早或更晚','方奎是共犯——奈特通过电话远程指挥方奎下毒'],ans:0,hint:'查询到的两程机票：北京→上海18:00-19:30，上海→北京22:30-00:05。这确实可以实现在上海停留约三小时（19:30-22:30）。演讲21:30开始——如果演讲者21:30上台，他必须在21:00之前到达北京。19:30才到上海的奈特，不可能21:00前回到北京。因此——<b>演讲台上的人必须是替身</b>。而"Knight to E5"——E5=棋盘中心=上海（地理中心）=死亡地点。奈特(Knight)走向了E5——他走向了上海，走向了死亡。',praise:'精彩绝伦！替身 + 飞行器 = 完美的"同时性不在场证明"。而死者临终的象棋暗号，将Knight永远钉在了E5格上。',why:`<b>真相：奈特使用了替身 + 飞机往返。</b>
+1. <b>奈特的真实行动：</b>
+   — 18:00 北京大兴起飞 → 19:30 抵达上海虹桥
+   — 20:00 入住上海酒店（戴帽子和口罩以避开监控正面识别）
+   — 21:50 用手机拨打常伯谦房间电话——以"明天的对局"为话题拖延时间，同时确认他在房间
+   — 22:00 以见面为由进入常伯谦房间→在咖啡中投入氰化物→常伯谦喝下后中毒身亡
+   — 22:30 上海虹桥起飞 → 00:05 抵达北京大兴
+2. <b>演讲台上的人：</b>奈特提前录制了整场演讲的视频——或者安排了一名体形相似的替身（可能戴了仿真面具），在台上配合"播放"完成演讲。五百名观众在刺眼的舞台灯光下不可能分辨出真人还是替身。奈特可能在演讲的前半段（21:30-21:45）短暂露面后，以"中场休息"为借口离开——实际上直奔机场。
+3. <b>"Knight to E5"：</b>这是常伯谦临死前留下的暗号。E5是国际象棋棋盘正中心的格子。将中国地图叠在棋盘上，<b>上海恰好位于中国东部海岸线的中心位置</b>——E5=上海。常伯谦在说：奈特(Knight)来到了上海(E5)——来到了我的面前。他无法直接写出"奈特杀我"，因为他知道奈特可能会返回现场检查。所以他用了一个只有象棋棋手才能理解的暗号。
+4. 常夫人的往返机票查询、方奎的账目问题——都是干扰项。真正的凶手利用了现代交通工具和舞台表演的盲区，制造了一个看似完美的不在场证明。
+<b>核心：<i>骑士(Knight)走了L形——北京→上海→北京。这就是"Knight to E5"的全部含义。</i></b>`,};return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案发现场',sc(s.scene)+`<div class="diagram"><pre>  【国际象棋盘 — E5位置】       【地理对应】
+
+  8 ░░██░░██░░██░░██            E5 = 棋盘正中
+  7 ██░░██░░██░░██░░            棋盘正中 = 中国东部中心
+  6 ░░██░░██░░██░░██            中国东部中心 = 上海
+  5 ██░░██░░♞░██░░██  ← E5
+  4 ░░██░░██░░██░░██            奈特(Knight) → E5(上海)
+  3 ██░░██░░██░░██░░            = 奈特来到上海杀了我
+  2 ░░██░░██░░██░░██
+  1 ██░░██░░██░░██░░            北京→上海：飞行1.5小时
+     a b c d e f g h             上海→北京：飞行1.5小时
+
+  Knight(♞) = L形移动（直2横1）
+</pre><div class="label">"Knight to E5" 暗号解读图</div></div>`)}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">♞ ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ── 案件六：北方夕鹤 ────────────────────────────
+// 灵感：岛田庄司吉敷竹史系列《北方夕鹤2/3杀人事件》
+// 核心诡计：时刻表诡计 + 废弃隧道 + 折纸鹤遗言
+GAMES.crane={
+  icon:'🌅',title:'北方夕鹤',desc:'东北雪原的灯塔——死亡列车时刻表中的不可能缝隙，和一只沾血的纸鹤。',
+  gen(){
+    const s={title:'北方夕鹤——流冰岬灯塔杀人事件',victim:'苏鹤 (28)。折纸艺术家，定居黑龙江漠河。她的"连鹤"技法——从一张纸中不断折出相连的纸鹤——在中国折纸界独一无二。',scene:`黑龙江漠河。北陲岬角的断崖上，矗立着一座白色灯塔。灯塔内部，沿着螺旋楼梯走到顶端——折纸艺术家苏鹤的遗体被发现。她是被<b>绞杀</b>的：一根极细的丝线紧紧缠绕在颈部。<br><br>遗体旁，端端正正地放着一只<b>染血的纸鹤</b>——那是她生命中折出的最后一件作品。纸鹤的翅膀内侧，隐约有铅笔写下的几个字：<b>"R-23:15"</b>。<br><br>灯塔当天有三名访客——这三人之后都声称为了赶乘漠河发往哈尔滨的<b>末班列车（22:18发车）</b>而离开了灯塔。`,suspects:[{name:'苏建国 (55)',role:'死者之父。漠河火车站退休职工。',info:'<b>动机：</b>女儿是他唯一的经济来源。女儿决定与男友结婚后移居南方——他将失去一切生活保障。他激烈反对这桩婚事，甚至威胁要"让她永远留在这里"。<br><b>行踪：</b>他是当天最后一个离开灯塔的人。他说自己要"和女儿谈一件重要的事"。<br><b>疑点：</b>退休铁路职工——他比任何人都了解这条铁路线上的每一个弯道、每一个信号灯、每一个<b>废弃的设施</b>。包括一条已经停用了二十年的<b>保线隧道</b>——那条隧道从灯塔附近的山体中穿过，出口就在漠河站后方。这条隧道没有出现在任何公开地图上。'},{name:'韩冬 (32)',role:'死者之未婚夫。哈尔滨报社记者。',info:'<b>动机：</b>苏鹤在婚礼前一周突然提出解除婚约——理由不明。他无法接受，多次打电话、发消息、甚至开车来漠河试图挽回。<br><b>行踪：</b>案发当天从哈尔滨开车来漠河——约20:00抵达。在灯塔与苏鹤见面后，21:30离开灯塔——他说自己然后开车回了哈尔滨。<br><b>疑点：</b>他的车后备箱中发现了<b>大量折纸专用和纸</b>——上等日本和纸，价格不菲。他说是"送她的礼物"。但对于一个刚刚解除婚约的女人，带昂贵的礼物来见最后一面——合理吗？'},{name:'曲小雪 (25)',role:'死者童年好友。灯塔的实习管理员。',info:'<b>动机：</b>苏鹤赖以成名的"连鹤"技法——据传实际上是曲小雪发明的。苏鹤在一次参观曲小雪的工作室后，"突然"掌握了连鹤技巧并率先发表。曲小雪多年来保持了沉默——但最近有人听到她在酒吧里说"我总有一天要揭穿她"。<br><b>行踪：</b>她是灯塔当天值班的管理员，也是尸体的第一发现者。<br><b>疑点：</b>她每天都有详细的工作日志——唯独案发当天的那一页<b>被撕掉了</b>。她说是"写错了重新抄了一页"——但废纸篓里没有找到被撕掉的原页。'},],clues:['<b>"R-23:15"暗号：</b>R = 铁路(Railway)？路线(Route)？还是人名？23:15 = 时间。但法医推定的死亡时间为21:00-21:30之间——<b>23:15这个时间不在死亡窗口内</b>。这个时间意味着什么？','<b>漠河站列车时刻：</b>末班旅客列车22:18发车。但是——<b>23:15有一趟货运列车经过漠河站</b>。这趟货车不在公开发售的时刻表上，只有铁路系统内部人员知道。','<b>废弃保线隧道：</b>灯塔东北方向约800米处，有一条废弃的铁路保线隧道。隧道穿山而过，出口就在漠河火车站后方。这段路步行约15分钟——<b>比走公路（40分钟车程）快了不止一倍</b>。这条隧道在地图上不存在——但退休铁路职工苏建国一定知道。','<b>绞杀丝线的鉴定：</b>缠绕在苏鹤颈部的丝线是<b>"水引"——日本折纸中用于装饰的专用丝线</b>。这种丝线在漠河当地只有一家店铺有售——曲小雪兼职的那家折纸工房。','<b>韩冬的不在场证明矛盾：</b>他说自己21:30离开灯塔，然后开车返回哈尔滨。但他的信用卡在<b>22:00</b>于漠河镇上的便利店有一笔消费——便利店距灯塔仅十分钟车程。这意味着他21:30离开灯塔后，至少到22:00还在漠河镇上——并没有立即上高速。他说"路上买了瓶水"——但从灯塔到便利店开十分钟，从便利店到高速路口还要十五分钟。22:00在便利店——他最早的出发时间是22:15。而他说自己凌晨1:00到了哈尔滨——正常车程八小时，他用了不到三小时？<b>他在说谎。</b>','<b>苏建国的可疑行为：</b>案发后，苏建国第一个冲进灯塔——但他没有跑向女儿的遗体，而是直奔<b>灯塔的机房</b>。他在机房待了约两分钟才出来。机房里有灯塔的备用电源和通往地下储藏室的暗门——暗门后面是山体的岩壁。他要找的是什么？'],question:'"R-23:15"是什么意思？利用废弃隧道和货运列车，凶手如何构建不在场证明？',opts:['苏建国——退休铁路职工利用废弃隧道和货运列车制造了时间差','韩冬——未婚夫因婚事被拒而起杀心，开车返回途中折返行凶','曲小雪——连鹤技法被剽窃的怨恨，利用水引丝线绞杀了昔日好友','苏建国和曲小雪共谋——铁路知识+折纸工房的水引丝线','人都是无辜的——苏鹤因婚约压力选择了以连鹤技法终结自己的生命'],ans:0,hint:'R=铁路(Railway)。23:15=货运列车的通过时刻。末班旅客列车是22:18——但知道23:15货运列车的人只有退休铁路职工苏建国。利用这趟"不存在"的列车+废弃隧道（15分钟步行直达火车站），苏建国可以在22:18"假装"乘末班车离开，实则乘23:15货车离开——中间多出来的一小时，就是杀人时间。纸鹤是女儿留给世界的最后信息。',praise:'完美破解了时刻表诡计！退休铁路职工对铁路系统的掌控——废弃隧道 + 幽灵货车 + 精确到分钟的时间差——构筑了一个坚不可摧的不在场证明。然而一只纸鹤，让整个计划崩塌。',why:`<b>真凶：苏建国（死者之父·退休铁路职工）。</b>
+1. <b>"R-23:15"的解：</b>这是苏鹤临死前在纸鹤翅膀内侧留下的遗言。R = 铁路(Railway)。23:15 = 那趟不为人知的货运列车。她用最后一丝力气告诉世界——<b>"凶手乘23:15的货运列车离开"</b>。她知道只有父亲知道这趟车的存在。
+2. <b>时刻表诡计：</b>苏建国对所有人说"我乘22:18的末班车离开"。但他没有乘那趟车——他利用了废弃保线隧道。灯塔→隧道（步行15分钟）→漠河站后方。他躲在站台上，等待22:18的末班车开走——所有人以为他已经上车——然后乘23:15的货运列车从容离开。中间多出来的近一小时——21:30到22:30——就是他的作案时间。
+3. <b>机房的秘密：</b>案发后他直奔机房——是因为机房暗门通向废弃隧道的入口。他在那里遗留了某个证物（可能是沾血的手套或鞋套），必须在警方发现之前取回。
+4. <b>动机：</b>女儿要远嫁南方——他不仅失去经济依靠，作为父亲的控制欲也被彻底粉碎。他选择了一种最残忍的方式"留住"女儿。
+5. 水引丝线虽然是曲小雪工房的东西——但苏鹤本人作为折纸艺术家也使用这种材料。苏建国可以轻易从女儿的房间拿到。
+6. 韩冬的和纸、曲小雪的日记——都是干扰项。苏建国作为父亲——<b>他拥有最大的信任、最不被怀疑的身份、以及对铁路系统最深入的掌控。</b>
+<b>核心：<i>最好的不在场证明，不是没有时间——而是让所有人都相信你已经离开了。</i></b>`,};return{html:`
+<div class="sec" style="border-bottom:2px solid var(--accent);"><div style="font-family:var(--serif);font-size:1.2rem;color:var(--paper);letter-spacing:2px;">${s.title}</div><div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${s.victim}</div></div>
+${sec('案发现场',sc(s.scene)+`<div class="diagram"><pre>  【北陲岬灯塔 — 周边地形图】
+
+        黑龙江（国境线）
+   ~~~~~~~~  ~~~~~~~~
+        ╱  ╲
+       ╱ 灯塔 ╲       灯塔 ──(步行15分)──→ 废弃保线隧道
+      │   🕯️    │
+       ╲  遗骸 ╱      废弃隧道 ──(步行5分)──→ 漠河站后方
+        ╲    ╱
+         ╲  ╱          末班列车: 22:18（公开时刻表）
+          ╲╱           货运列车: 23:15（非公开·仅内部知晓）
+          │
+    ──────┼──────→ 漠河火车站（车程40分/隧道步行仅20分）
+          │
+    废弃保线隧道入口（地图未标注）
+</pre><div class="label">灯塔周边地图 / 废弃隧道是时刻表诡计的关键</div></div>`)}
+${sec('嫌疑人',`<div class="suspects">${s.suspects.map(x=>`<div class="suspect"><div class="s-name">${x.name}</div><div class="s-role">${x.role}</div><div class="s-info">${x.info}</div></div>`).join('')}</div>`)}
+${sec('线索',s.clues.map((c,i)=>`<div class="clue"><span class="clue-num">${i+1}</span><span>${c}</span></div>`).join(''))}
+<div class="verdict"><div class="vq">🌅 ${s.question}</div></div>`,opts:s.opts,ans:s.ans,hint:s.hint,praise:s.praise,why:s.why};
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+const KEYS=['zodiac','slanted','crystal','vertigo','knight','crane'];
+const NAMES={
+  zodiac:'🔮 占星术杀人',
+  slanted:'🏚️ 倾斜之馆',
+  crystal:'💎 水晶密室',
+  vertigo:'🌀 眩晕迷案',
+  knight:'♞ 异邦骑士',
+  crane:'🌅 北方夕鹤',
+};
+KEYS.forEach(k=>{
+  const b=document.createElement('button');
+  b.className='tab';b.dataset.g=k;b.textContent=NAMES[k];
+  b.addEventListener('click',()=>load(k));
+  document.getElementById('tabs').appendChild(b);
+});
+load('zodiac');u();
+</script>
+</body>
+</html>
